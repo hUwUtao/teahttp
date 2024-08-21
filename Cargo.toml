@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "a http client for wasm"
 license = "MIT"
+repository = "https://github.com/hUwUtao/teahttp"
+homepage = "https://github.com/hUwUtao/teahttp"
 
 [lib]
 name = "teahttp"
