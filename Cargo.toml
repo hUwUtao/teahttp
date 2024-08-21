@@ -1,0 +1,28 @@
+[package]
+name = "teahttp"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "teahttp"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[features]
+std = []
+default = ["std"]
+
+[dependencies]
+js-sys = "0.3.70"
+wasm-bindgen = "0.2.93"
+wasm-bindgen-futures = "0.4.43"
+web-sys = { version = "0.3.70", features = [
+    "Headers",
+    "Request",
+    "RequestInit",
+    "Response",
+    "Window",
+    # "Url",
+    "UrlSearchParams",
+    "WorkerGlobalScope",
+], default-features = false }
