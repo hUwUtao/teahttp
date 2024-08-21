@@ -6,6 +6,8 @@ use web_sys::{
     js_sys, wasm_bindgen::JsCast, window, Request, RequestInit, Response, Window, WorkerGlobalScope,
 };
 
+pub use web_sys;
+
 #[derive(Debug)]
 pub enum TeaError {
     JSErr(JsValue),
@@ -206,14 +208,14 @@ impl<'a> TeaConstructor<'a> {
 }
 
 pub trait Constructable {
-    fn init(&self) -> RequestInit;
+    fn init(&self) -> Result<RequestInit, TeaError>;
 }
 
 impl Constructable for TeaConstructor<'_> {
-    fn init(&self) -> RequestInit {
+    fn init(&self) -> Result<RequestInit, TeaError> {
         let opts = web_sys::RequestInit::new();
         opts.set_method(&format!("{:?}", self.0 .0));
-        opts
+        Ok(opts)
     }
 }
 
@@ -224,7 +226,7 @@ pub trait RequestInvokable: Constructable {
      */
     #[allow(async_fn_in_trait)]
     async fn invoke(&self) -> Result<Response, TeaError> {
-        let request = Request::new_with_request_and_init(&self.base_request(), &self.init())?;
+        let request = Request::new_with_request_and_init(&self.base_request(), &self.init()?)?;
         FetchProviders::pls()?.fetch(&request).await
     }
 }
@@ -268,10 +270,10 @@ impl<'a> TeaBodyConstructor<'a> {
     }
 }
 impl<'a> Constructable for TeaBodyConstructor<'a> {
-    fn init(&self) -> RequestInit {
-        let init = self.0.init();
+    fn init(&self) -> Result<RequestInit, TeaError> {
+        let init = self.0.init()?;
         init.set_body(&self.as_value());
-        init
+        Ok(init)
     }
 }
 impl<'a> RequestInvokable for TeaBodyConstructor<'a> {
