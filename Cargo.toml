@@ -2,6 +2,8 @@
 name = "teahttp"
 version = "0.1.0"
 edition = "2021"
+description = "a http client for wasm"
+license = "MIT"
 
 [lib]
 name = "teahttp"
