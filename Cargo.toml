@@ -1,6 +1,6 @@
 [package]
 name = "teahttp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "a http client for wasm"
 license = "MIT"

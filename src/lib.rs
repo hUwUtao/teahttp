@@ -12,7 +12,6 @@ pub use web_sys;
 pub enum TeaError {
     JSErr(JsValue),
     HellNoSuchProvider,
-    InvalidMethod,
 }
 
 impl From<JsValue> for TeaError {
@@ -28,7 +27,6 @@ impl core::fmt::Display for TeaError {
                 f.write_str(&err.as_string().unwrap_or("Unstringable Error".to_string()))
             }
             TeaError::HellNoSuchProvider => f.write_str("where did y run this lib lol"),
-            TeaError::InvalidMethod => f.write_str("oh uh y probably send something on get"),
         }
     }
 }
@@ -228,6 +226,12 @@ pub trait RequestInvokable: Constructable {
     async fn invoke(&self) -> Result<Response, TeaError> {
         let request = Request::new_with_request_and_init(&self.base_request(), &self.init()?)?;
         FetchProviders::pls()?.fetch(&request).await
+    }
+}
+
+impl<'a> RequestInvokable for TeaConstructor<'a> {
+    fn base_request(&self) -> Request {
+        self.1.clone().expect("cannot clone Request")
     }
 }
 
