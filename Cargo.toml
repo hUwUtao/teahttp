@@ -17,9 +17,8 @@ std = []
 default = ["std"]
 
 [dependencies]
-js-sys = "0.3.70"
-wasm-bindgen = "0.2.93"
-wasm-bindgen-futures = "0.4.43"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3.70", features = [
     "Headers",
     "Request",
@@ -27,6 +26,6 @@ web-sys = { version = "0.3.70", features = [
     "Response",
     "Window",
     # "Url",
-    "UrlSearchParams",
+    # "UrlSearchParams",
     "WorkerGlobalScope",
 ], default-features = false }
