@@ -1,6 +1,6 @@
 [package]
 name = "teahttp"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "a http client for wasm"
 license = "MIT"
@@ -35,4 +35,4 @@ web-sys = { version = "0.3.70", features = [
 ], default-features = false }
 
 [dev-dependencies]
-async-std = { version = "1.12.0", features = ["attributes"] }
+async-std = { version = "1.12", features = ["attributes"] }

@@ -1,4 +1,4 @@
-use teahttp::{TeaError, TeaRequestInvoker};
+use teahttp::{TeaError, TeaHeaderOwner, TeaRequestBuilder, TeaRequestInvoker};
 
 /**
 ### This example is not meant to be run
@@ -9,6 +9,7 @@ async fn main() -> Result<(), TeaError> {
     let _req = teahttp::TeaRequest::get("/api").invoke().await?;
     let some_body = b"Bogus wa Lorem ipsum dolor si amet\r\n";
     let _req = teahttp::TeaRequest::post("/api/submit")
+        .header("X-Client", "teahttp")?
         .slice_body(some_body.as_slice())
         .invoke()
         .await?;

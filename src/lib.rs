@@ -31,6 +31,9 @@ use wasm_bindgen::JsValue;
 pub use web_sys;
 
 #[derive(Debug)]
+/**
+### Handling mostly JS side error
+ */
 pub enum TeaError {
     JSErr(JsValue),
     HellNoSuchProvider,
@@ -173,14 +176,14 @@ mod core {
 
     macro_rules! impl_cst {
         ($mth:tt, $MTHE:tt ) => {
-            pub fn $mth(url: &'a str) -> TeaConstructor {
+            pub fn $mth(url: &'a str) -> TeaBuilder {
                 Self::from_str(misc::Method::$MTHE, url)
             }
         };
     }
 
     /**
-    ### Use this struct to construct your request
+    ### **Use this struct to construct your request**
     ```
     TeaRequest::get("/api/something")
         .invoke()
@@ -191,8 +194,8 @@ mod core {
     pub struct TeaRequest<'a>(misc::Method, &'a str);
     impl<'a> TeaRequest<'a> {
         #[inline(always)]
-        fn from_str(method: misc::Method, url: &'a str) -> TeaConstructor {
-            TeaConstructor::new(Self(method, url))
+        fn from_str(method: misc::Method, url: &'a str) -> TeaBuilder {
+            TeaBuilder::new(Self(method, url))
         }
 
         impl_cst! { get     , GET     }
@@ -206,17 +209,26 @@ mod core {
         impl_cst! { patch   , PATCH   }
     }
 
+    macro_rules! impl_body_trait {
+        ($fn:tt,$vt:ty) => {
+            fn $fn(&self, v: &'a $vt) -> TeaWithBody<'a>;
+        };
+    }
+
     macro_rules! impl_body {
         ($fn:tt,$vt:ty,$Wrapper:tt) => {
-            pub fn $fn(self, v: &'a $vt) -> TeaBodyConstructor {
-                TeaBodyConstructor(self, TeaBody::$Wrapper(&v))
+            fn $fn(&self, v: &'a $vt) -> TeaWithBody<'a> {
+                TeaWithBody(self.clone(), TeaBody::$Wrapper(&v))
             }
         };
     }
 
     #[derive(Clone)]
-    pub struct TeaConstructor<'a>(TeaRequest<'a>, Request);
-    impl<'a> TeaConstructor<'a> {
+    /**
+    Step to build options from [TeaRequest]
+     */
+    pub struct TeaBuilder<'a>(TeaRequest<'a>, Request);
+    impl<'a> TeaBuilder<'a> {
         fn new(base: TeaRequest<'a>) -> Self {
             let url = base.1;
             Self(
@@ -224,12 +236,41 @@ mod core {
                 web_sys::Request::new_with_str(&url).expect("cannot create Request"),
             )
         }
+    }
 
-        pub fn header(&'a mut self, key: &str, value: &str) -> Result<&'a mut Self, TeaError> {
-            self.1.headers().set(key, value)?;
+    pub(crate) trait TeaRequestOwner<'a, 'b> {
+        fn get_request(&'b self) -> &'a Request;
+    }
+
+    #[allow(private_bounds)]
+    /**
+    ### Add header to request
+    By default, header list is pretty empty
+     */
+    pub trait TeaHeaderOwner<'a>: TeaRequestOwner<'a, 'a> {
+        /**
+        ### Add header with a builder style
+         */
+        fn header(&'a mut self, key: &str, value: &str) -> Result<&'a mut Self, TeaError>;
+    }
+
+    impl<'a, 'b: 'a> TeaRequestOwner<'a, 'b> for TeaBuilder<'b> {
+        fn get_request(&'b self) -> &'a Request {
+            &self.1
+        }
+    }
+
+    impl<'a> TeaHeaderOwner<'a> for TeaBuilder<'a> {
+        fn header(&'a mut self, key: &str, value: &str) -> Result<&'a mut Self, TeaError> {
+            self.get_request().headers().set(key, value)?;
             Ok(self)
         }
+    }
 
+    /**
+    ### Finalize request by assign body
+     */
+    pub trait TeaRequestBuilder<'a>: TeaHeaderOwner<'a> {
         // pub fn slice_body<'b>(self, slice: &'b [u8]) -> BodifiedConstruct {
         //     BodifiedConstruct(self, Body::BorrowedSlice(&slice))
         // }
@@ -237,12 +278,16 @@ mod core {
         // pub fn str_body<'b>(self, str: &'b str) -> BodifiedConstruct {
         //     BodifiedConstruct(self, Body::BorrowedSlice(&slice))
         // }
+        impl_body_trait!(slice_body, [u8]);
+        impl_body_trait!(str_body, str);
+        fn string_body(&self, str: String) -> TeaWithBody<'a>;
+    }
 
+    impl<'a> TeaRequestBuilder<'a> for TeaBuilder<'a> {
         impl_body!(slice_body, [u8], BorrowedSlice);
         impl_body!(str_body, str, BorrowedString);
-
-        pub fn string_body(self, str: String) -> TeaBodyConstructor<'a> {
-            TeaBodyConstructor(self, TeaBody::CopiedString(str))
+        fn string_body(&self, str: String) -> TeaWithBody<'a> {
+            TeaWithBody(self.clone(), TeaBody::CopiedString(str))
         }
     }
 
@@ -250,7 +295,7 @@ mod core {
         fn init(&self) -> Result<RequestInit, TeaError>;
     }
 
-    impl Constructable for TeaConstructor<'_> {
+    impl Constructable for TeaBuilder<'_> {
         fn init(&self) -> Result<RequestInit, TeaError> {
             let opts = web_sys::RequestInit::new();
             opts.set_method(&format!("{:?}", self.0 .0));
@@ -280,12 +325,12 @@ mod core {
         }
     }
 
-    impl<'a> Based for TeaConstructor<'a> {
+    impl<'a> Based for TeaBuilder<'a> {
         fn base_request(&self) -> Request {
             self.1.clone().expect("cannot clone Request")
         }
     }
-    impl TeaRequestInvoker for TeaConstructor<'_> {}
+    impl TeaRequestInvoker for TeaBuilder<'_> {}
 
     #[derive(Clone)]
     pub(crate) enum TeaBody<'a> {
@@ -313,8 +358,11 @@ mod core {
     }
 
     #[derive(Clone)]
-    pub struct TeaBodyConstructor<'a>(TeaConstructor<'a>, TeaBody<'a>);
-    impl<'a> TeaBodyConstructor<'a> {
+    /**
+    Request after [TeaBuilder] attach body. Should only [TeaRequestInvoker::invoke]
+     */
+    pub struct TeaWithBody<'a>(TeaBuilder<'a>, TeaBody<'a>);
+    impl<'a> TeaWithBody<'a> {
         fn as_value(&self) -> JsValue {
             match &self.1 {
                 TeaBody::BorrowedSlice(slc) => {
@@ -327,19 +375,21 @@ mod core {
             }
         }
     }
-    impl<'a> Constructable for TeaBodyConstructor<'a> {
+    impl<'a> Constructable for TeaWithBody<'a> {
         fn init(&self) -> Result<RequestInit, TeaError> {
             let init = self.0.init()?;
             init.set_body(&self.as_value());
             Ok(init)
         }
     }
-    impl<'a> Based for TeaBodyConstructor<'a> {
+    impl<'a> Based for TeaWithBody<'a> {
         fn base_request(&self) -> Request {
             self.0 .1.clone().expect("cannot clone Request")
         }
     }
-    impl TeaRequestInvoker for TeaBodyConstructor<'_> {}
+    impl TeaRequestInvoker for TeaWithBody<'_> {}
 }
 
-pub use core::{TeaRequest, TeaRequestInvoker};
+pub use core::{
+    TeaBuilder, TeaHeaderOwner, TeaRequest, TeaRequestBuilder, TeaRequestInvoker, TeaWithBody,
+};
