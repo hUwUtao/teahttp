@@ -1,11 +1,12 @@
 [package]
 name = "teahttp"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "a http client for wasm"
 license = "MIT"
 repository = "https://github.com/hUwUtao/teahttp"
 homepage = "https://github.com/hUwUtao/teahttp"
+keywords = ["web", "http", "wasm"]
 
 [lib]
 name = "teahttp"
@@ -15,6 +16,9 @@ path = "src/lib.rs"
 [features]
 std = []
 default = ["std"]
+
+[[example]]
+name = "one"
 
 [dependencies]
 wasm-bindgen = "0.2"
@@ -29,3 +33,6 @@ web-sys = { version = "0.3.70", features = [
     # "UrlSearchParams",
     "WorkerGlobalScope",
 ], default-features = false }
+
+[dev-dependencies]
+async-std = { version = "*", features = ["attributes"] }
